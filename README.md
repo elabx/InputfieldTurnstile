@@ -59,4 +59,4 @@ if($input->post->submit) {
 
 ## License
 
-This module is licensed under the same terms as ProcessWire.
+This module is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
