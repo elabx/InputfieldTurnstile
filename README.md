@@ -60,4 +60,3 @@ if($input->post->submit) {
 ## License
 
 This module is licensed under the same terms as ProcessWire.
-# InputfieldTurnstile
