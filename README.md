@@ -60,3 +60,11 @@ if($input->post->submit) {
 ## License
 
 This module is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+## Per-field appearance
+
+Each field has an Appearance option: Always visible (default) or Only when
+interaction is needed. The latter renders `data-appearance="interaction-only"`
+with the same site key and secret key. Use a Managed widget in Cloudflare;
+this setting does not change the widget to Invisible mode. Existing fields
+retain Always visible behavior. Via API, set
+`$turnstile->turnstileAppearance = 'interaction-only';`.

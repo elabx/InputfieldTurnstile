@@ -5,6 +5,7 @@
  * 
  * @property string $turnstileSiteKey
  * @property string $turnstileTheme
+ * @property string $turnstileAppearance
  * @property string $turnstileSize
  * 
  */
@@ -13,7 +14,7 @@ class InputfieldTurnstile extends Inputfield {
 	public static function getModuleInfo(): array {
 		return array(
 			'title' => 'Turnstile (Cloudflare)',
-			'version' => 1,
+			'version' => 2,
 			'summary' => 'Adds a Cloudflare Turnstile input, preventing submission until user successfully completes it.',
 			'icon' => 'shield',
 			'requires' => array('ProcessWire>=3.0', 'MarkupCloudflareTurnstile'),
@@ -70,6 +71,7 @@ class InputfieldTurnstile extends Inputfield {
 		$attrs['class'] = trim('cf-turnstile ' . ($attrs['class'] ?? ''));
 		$attrs['data-size'] = $this->turnstileSize ?: 'normal';
 		$attrs['data-theme'] = $this->turnstileTheme ?: 'auto';
+		$attrs['data-appearance'] = $this->turnstileAppearance === 'interaction-only' ? 'interaction-only' : 'always';
 		
 		// If a specific site key is set on this inputfield, override the Markup module's default
 		if($this->turnstileSiteKey) {
@@ -95,6 +97,16 @@ class InputfieldTurnstile extends Inputfield {
 	public function ___getConfigInputfields(): InputfieldWrapper {
 		$inputfields = parent::___getConfigInputfields();
 		$modules = $this->wire('modules');
+
+		$f = $modules->get('InputfieldRadios');
+		$f->attr('name', 'turnstileAppearance');
+		$f->label = $this->_('Appearance');
+		$f->description = $this->_('With a Managed widget, show it always or only when visitor interaction is needed. Both options use the same API keys.');
+		$f->addOption('always', $this->_('Always visible'));
+		$f->addOption('interaction-only', $this->_('Only when interaction is needed'));
+		$f->attr('value', $this->turnstileAppearance === 'interaction-only' ? 'interaction-only' : 'always');
+		$f->optionColumns = 1;
+		$inputfields->add($f);
 
 		/** @var InputfieldRadios $f */
 		$f = $modules->get('InputfieldRadios');
