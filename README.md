@@ -8,6 +8,7 @@ This module acts as a wrapper around [MarkupCloudflareTurnstile](https://github.
 
 - **Smart Protection**: Verifies visitors are real humans without requiring them to solve puzzles.
 - **Configurable**: Supports different themes (Auto, Light, Dark) and sizes (Normal, Compact, Flexible).
+- **Invisible until needed**: Optionally show the widget only when Cloudflare needs the visitor to interact.
 - **Easy Integration**: Works like any other ProcessWire Inputfield.
 - **Centralized Config**: Uses API keys from `MarkupCloudflareTurnstile`.
 
@@ -20,11 +21,20 @@ This module acts as a wrapper around [MarkupCloudflareTurnstile](https://github.
 ## Installation
 
 1. Install **MarkupCloudflareTurnstile**:
-   - Download from the [modules directory](https://modules.processwire.com/modules/markup-cloudflare-turnstile/) or GitHub.
+   - Download from the [modules directory](https://modules.processwire.com/modules/markup-cloudflare-turnstile/) or GitHub (it is not on Packagist).
    - Install and configure it with your **Site Key** and **Secret Key**.
-2. Install **InputfieldTurnstile**:
-   - Copy the `InputfieldTurnstile` directory to `site/modules/`.
-   - Go to **Modules > Refresh** and click **Install**.
+2. Install **InputfieldTurnstile** with one of these methods:
+   - **Composer** (from your ProcessWire root):
+     ```bash
+     composer require elabx/inputfield-turnstile
+     ```
+     [processwire-composer-installer](https://github.com/wireframe-framework/processwire-composer-installer) puts the module in `site/modules/InputfieldTurnstile`.
+     Until the package is on Packagist, add the GitHub repository first:
+     ```bash
+     composer config repositories.inputfield-turnstile vcs https://github.com/elabx/InputfieldTurnstile
+     ```
+   - **Manually**: copy the `InputfieldTurnstile` directory to `site/modules/`.
+3. Go to **Modules > Refresh** and click **Install**.
 
 ## Usage
 
@@ -44,7 +54,8 @@ $turnstile = $modules->get("InputfieldTurnstile");
 $turnstile->name = "turnstile";
 $turnstile->label = "Security Check";
 // Optional: Override settings
-// $turnstile->turnstileTheme = 'dark'; 
+// $turnstile->turnstileTheme = 'dark';
+// $turnstile->turnstileAppearance = 'interaction-only';
 $form->add($turnstile);
 
 // ... render and process form ...
@@ -57,14 +68,24 @@ if($input->post->submit) {
 }
 ```
 
+## Appearance
+
+Each field has an **Appearance** option: *Always visible* (default) or *Only
+when interaction is needed*. The latter renders
+`data-appearance="interaction-only"`, so the widget stays hidden unless
+Cloudflare needs the visitor to interact. It uses the same site key and secret
+key. Use a Managed widget in Cloudflare; this setting does not switch the
+widget to Invisible mode. Fields without their own setting use the default
+from the module config (*Always visible* unless you change it).
+
+Via API: `$turnstile->turnstileAppearance = 'interaction-only';`
+
+## Missing keys
+
+Until both a site key and a secret key are configured, the field renders
+nothing and skips validation. This lets you add it to forms before a site's
+Cloudflare keys are entered.
+
 ## License
 
 This module is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-## Per-field appearance
-
-Each field has an Appearance option: Always visible (default) or Only when
-interaction is needed. The latter renders `data-appearance="interaction-only"`
-with the same site key and secret key. Use a Managed widget in Cloudflare;
-this setting does not change the widget to Invisible mode. Existing fields
-retain Always visible behavior. Via API, set
-`$turnstile->turnstileAppearance = 'interaction-only';`.

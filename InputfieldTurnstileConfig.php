@@ -11,6 +11,18 @@ class InputfieldTurnstileConfig extends ModuleConfig {
 				'description' => $this->_('These settings will be used as defaults for new InputfieldTurnstile fields.'),
 				'children' => array(
 					array(
+						'name' => 'turnstileAppearance',
+						'label' => $this->_('Appearance'),
+						'description' => $this->_('With a Managed widget, show it always or only when visitor interaction is needed. Both options use the same API keys.'),
+						'type' => 'radios',
+						'options' => array(
+							'always' => $this->_('Always visible'),
+							'interaction-only' => $this->_('Only when interaction is needed'),
+						),
+						'value' => 'always',
+						'optionColumns' => 1,
+					),
+					array(
 						'name' => 'turnstileTheme',
 						'label' => $this->_('Theme'),
 						'type' => 'radios',
@@ -39,4 +51,3 @@ class InputfieldTurnstileConfig extends ModuleConfig {
 		));
 	}
 }
-

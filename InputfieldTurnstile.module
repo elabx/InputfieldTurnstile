@@ -2,19 +2,19 @@
 
 /**
  * Cloudflare Turnstile Inputfield
- * 
+ *
  * @property string $turnstileSiteKey
  * @property string $turnstileTheme
  * @property string $turnstileAppearance
  * @property string $turnstileSize
- * 
+ *
  */
 class InputfieldTurnstile extends Inputfield {
 
 	public static function getModuleInfo(): array {
 		return array(
 			'title' => 'Turnstile (Cloudflare)',
-			'version' => 2,
+			'version' => 4,
 			'summary' => 'Adds a Cloudflare Turnstile input, preventing submission until user successfully completes it.',
 			'icon' => 'shield',
 			'requires' => array('ProcessWire>=3.0', 'MarkupCloudflareTurnstile'),
@@ -34,6 +34,19 @@ class InputfieldTurnstile extends Inputfield {
 		return $this->_('Missing API key(s)');
 	}
 
+	/**
+	 * Whether a site key and secret are configured
+	 *
+	 * Without both, the field renders nothing and does not validate, so a form
+	 * can carry the field before a site's Cloudflare keys are entered.
+	 *
+	 */
+	public function keysConfigured(): bool {
+		$markup = $this->wire('modules')->get('MarkupCloudflareTurnstile');
+		$siteKey = $this->turnstileSiteKey ?: $markup->siteKey;
+		return !empty($siteKey) && !empty($markup->secretKey);
+	}
+
 	public function error($text, $flags = 0) {
 		$text = $this->turnstileLabel() . ' - ' . $text;
 		return parent::error($text, $flags);
@@ -46,12 +59,13 @@ class InputfieldTurnstile extends Inputfield {
 
 	public function setParent(InputfieldWrapper $parent) {
 		parent::setParent($parent);
+		if(!$this->keysConfigured()) return $this;
 		$form = $this->getRootParent();
 		$markup =
-			"<noscript><p class='ui-state-error-text'>" . 
+			"<noscript><p class='ui-state-error-text'>" .
 			$this->_('ERROR: Javascript is required to submit this form, please enable it and reload this page before continuing.') .
 			"</p></noscript>";
-		
+
 		if($form && isset($form->prependMarkup) && strpos($form->prependMarkup, '<noscript>') === false) {
 			$form->prependMarkup .= $markup;
 		}
@@ -64,15 +78,16 @@ class InputfieldTurnstile extends Inputfield {
 	}
 
 	public function ___render(): string {
+		if(!$this->keysConfigured()) return '';
 		$markup = $this->wire('modules')->get('MarkupCloudflareTurnstile');
-		
+
 		// Prepare attributes for the Markup module
 		$attrs = $this->getAttributes();
 		$attrs['class'] = trim('cf-turnstile ' . ($attrs['class'] ?? ''));
 		$attrs['data-size'] = $this->turnstileSize ?: 'normal';
 		$attrs['data-theme'] = $this->turnstileTheme ?: 'auto';
 		$attrs['data-appearance'] = $this->turnstileAppearance === 'interaction-only' ? 'interaction-only' : 'always';
-		
+
 		// If a specific site key is set on this inputfield, override the Markup module's default
 		if($this->turnstileSiteKey) {
 			$attrs['data-sitekey'] = $this->turnstileSiteKey;
@@ -83,8 +98,9 @@ class InputfieldTurnstile extends Inputfield {
 	}
 
 	public function ___processInput(WireInputData $input) {
+		if(!$this->keysConfigured()) return $this;
 		$markup = $this->wire('modules')->get('MarkupCloudflareTurnstile');
-		// Markup module handles getting the response from POST internally usually, 
+		// Markup module handles getting the response from POST internally usually,
 		// or checks 'cf-turnstile-response'
 		if($markup->verifyResponse() === true) {
 			$this->val($this->_('Ok'));
@@ -110,26 +126,26 @@ class InputfieldTurnstile extends Inputfield {
 
 		/** @var InputfieldRadios $f */
 		$f = $modules->get('InputfieldRadios');
-		$f->attr('name', 'turnstileTheme'); 
-		$f->label = $this->_('Theme'); 
+		$f->attr('name', 'turnstileTheme');
+		$f->label = $this->_('Theme');
 		$f->addOption('auto', $this->_('Auto'));
 		$f->addOption('light', $this->_('Light'));
-		$f->addOption('dark', $this->_('Dark')); 
-		$f->attr('value', $this->turnstileTheme ?: 'auto'); 
+		$f->addOption('dark', $this->_('Dark'));
+		$f->attr('value', $this->turnstileTheme ?: 'auto');
 		$f->optionColumns = 1;
 		$inputfields->add($f);
 
 		/** @var InputfieldRadios $f */
 		$f = $modules->get('InputfieldRadios');
-		$f->attr('name', 'turnstileSize'); 
-		$f->label = $this->_('Size'); 
+		$f->attr('name', 'turnstileSize');
+		$f->label = $this->_('Size');
 		$f->addOption('normal', $this->_('Normal'));
 		$f->addOption('compact', $this->_('Compact'));
 		$f->addOption('flexible', $this->_('Flexible'));
-		$f->attr('value', $this->turnstileSize ?: 'normal'); 
+		$f->attr('value', $this->turnstileSize ?: 'normal');
 		$f->optionColumns = 1;
 		$inputfields->add($f);
-		
-		return $inputfields;	
+
+		return $inputfields;
 	}
 }

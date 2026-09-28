@@ -1,0 +1,26 @@
+{
+  "name": "elabx/inputfield-turnstile",
+  "description": "ProcessWire Inputfield that adds a Cloudflare Turnstile check to forms (FormBuilder or API).",
+  "type": "pw-module",
+  "keywords": ["processwire", "pw-module", "cloudflare", "turnstile", "captcha", "formbuilder"],
+  "homepage": "https://github.com/elabx/InputfieldTurnstile",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Eduardo San Miguel Garcia",
+      "email": "abx88as@gmail.com",
+      "homepage": "https://github.com/elabx"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/elabx/InputfieldTurnstile/issues",
+    "source": "https://github.com/elabx/InputfieldTurnstile"
+  },
+  "require": {
+    "php": ">=7.4",
+    "wireframe-framework/processwire-composer-installer": "^1.1"
+  },
+  "extra": {
+    "installer-name": "InputfieldTurnstile"
+  }
+}
