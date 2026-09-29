@@ -3,21 +3,68 @@
 /**
  * Cloudflare Turnstile Inputfield
  *
- * @property string $turnstileSiteKey
+ * @property string $turnstileSiteKey Optional site key for this field, used instead of the MarkupCloudflareTurnstile one
+ * @property string $turnstileSecretKey Optional secret key for this field, pairs with $turnstileSiteKey
  * @property string $turnstileTheme
- * @property string $turnstileAppearance
+ * @property string $turnstileAppearance One of 'always', 'interaction-only' or 'default' (use module default)
  * @property string $turnstileSize
  *
  */
 class InputfieldTurnstile extends Inputfield {
 
+	/**
+	 * Value of a per-field setting that defers to the module config
+	 *
+	 */
+	const useModuleDefault = 'default';
+
 	public static function getModuleInfo(): array {
 		return array(
 			'title' => 'Turnstile (Cloudflare)',
-			'version' => 4,
+			'version' => 5,
 			'summary' => 'Adds a Cloudflare Turnstile input, preventing submission until user successfully completes it.',
 			'icon' => 'shield',
 			'requires' => array('ProcessWire>=3.0', 'MarkupCloudflareTurnstile'),
+		);
+	}
+
+	/**
+	 * Definitions of the settings shared by the module config and the per-field config
+	 *
+	 * @return array of [ name => [ label, description, options, default ] ]
+	 *
+	 */
+	public static function getSettings(): array {
+		return array(
+			'turnstileAppearance' => array(
+				'label' => __('Appearance', __FILE__),
+				'description' => __('With a Managed widget, show it always or only when visitor interaction is needed. Both options use the same API keys.', __FILE__),
+				'options' => array(
+					'always' => __('Always visible', __FILE__),
+					'interaction-only' => __('Only when interaction is needed', __FILE__),
+				),
+				'default' => 'always',
+			),
+			'turnstileTheme' => array(
+				'label' => __('Theme', __FILE__),
+				'description' => '',
+				'options' => array(
+					'auto' => __('Auto', __FILE__),
+					'light' => __('Light', __FILE__),
+					'dark' => __('Dark', __FILE__),
+				),
+				'default' => 'auto',
+			),
+			'turnstileSize' => array(
+				'label' => __('Size', __FILE__),
+				'description' => '',
+				'options' => array(
+					'normal' => __('Normal', __FILE__),
+					'compact' => __('Compact', __FILE__),
+					'flexible' => __('Flexible', __FILE__),
+				),
+				'default' => 'normal',
+			),
 		);
 	}
 
@@ -35,6 +82,19 @@ class InputfieldTurnstile extends Inputfield {
 	}
 
 	/**
+	 * Get the MarkupCloudflareTurnstile module, or null if it is not available
+	 *
+	 * @return MarkupCloudflareTurnstile|null
+	 *
+	 */
+	protected function getMarkupModule() {
+		$modules = $this->wire('modules');
+		if(!$modules->isInstalled('MarkupCloudflareTurnstile')) return null;
+		$markup = $modules->get('MarkupCloudflareTurnstile');
+		return $markup ?: null;
+	}
+
+	/**
 	 * Whether a site key and secret are configured
 	 *
 	 * Without both, the field renders nothing and does not validate, so a form
@@ -42,9 +102,53 @@ class InputfieldTurnstile extends Inputfield {
 	 *
 	 */
 	public function keysConfigured(): bool {
-		$markup = $this->wire('modules')->get('MarkupCloudflareTurnstile');
+		$markup = $this->getMarkupModule();
+		if(!$markup) return false;
 		$siteKey = $this->turnstileSiteKey ?: $markup->siteKey;
-		return !empty($siteKey) && !empty($markup->secretKey);
+		$secretKey = $this->turnstileSecretKey ?: $markup->secretKey;
+		return !empty($siteKey) && !empty($secretKey);
+	}
+
+	/**
+	 * Call a function with this field's own keys applied to the Markup module
+	 *
+	 * MarkupCloudflareTurnstile always uses its own keys, so a per-field key
+	 * has to be swapped in for the duration of the call.
+	 *
+	 * @param MarkupCloudflareTurnstile $markup
+	 * @param callable $fn
+	 * @return mixed
+	 *
+	 */
+	protected function withFieldKeys($markup, callable $fn) {
+		$siteKey = $markup->siteKey;
+		$secretKey = $markup->secretKey;
+		if($this->turnstileSiteKey) $markup->siteKey = $this->turnstileSiteKey;
+		if($this->turnstileSecretKey) $markup->secretKey = $this->turnstileSecretKey;
+		try {
+			return $fn($markup);
+		} finally {
+			$markup->siteKey = $siteKey;
+			$markup->secretKey = $secretKey;
+		}
+	}
+
+	/**
+	 * Get the value of a setting, falling back to the module config and then the default
+	 *
+	 * @param string $name
+	 * @return string
+	 *
+	 */
+	public function getTurnstileSetting(string $name): string {
+		$settings = self::getSettings();
+		if(!isset($settings[$name])) return '';
+		$options = $settings[$name]['options'];
+		$value = (string) $this->get($name);
+		if(isset($options[$value])) return $value;
+		$value = (string) $this->wire('modules')->getConfig($this->className(), $name);
+		if(isset($options[$value])) return $value;
+		return $settings[$name]['default'];
 	}
 
 	public function error($text, $flags = 0) {
@@ -53,23 +157,21 @@ class InputfieldTurnstile extends Inputfield {
 	}
 
 	public function ___renderScript(): string {
-		$url = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
-		return "<script src='$url' async defer></script>";
+		$markup = $this->getMarkupModule();
+		return $markup ? $markup->getScript() : '';
 	}
 
-	public function setParent(InputfieldWrapper $parent) {
-		parent::setParent($parent);
-		if(!$this->keysConfigured()) return $this;
-		$form = $this->getRootParent();
-		$markup =
-			"<noscript><p class='ui-state-error-text'>" .
-			$this->_('ERROR: Javascript is required to submit this form, please enable it and reload this page before continuing.') .
-			"</p></noscript>";
-
-		if($form && isset($form->prependMarkup) && strpos($form->prependMarkup, '<noscript>') === false) {
-			$form->prependMarkup .= $markup;
-		}
-		return $this;
+	/**
+	 * Render the notice shown in place of the widget when keys are missing
+	 *
+	 * Only superusers see it, so visitors are not shown a configuration problem.
+	 *
+	 */
+	protected function renderMissingKeys(): string {
+		if(!$this->wire('user')->isSuperuser()) return '';
+		$text = $this->turnstileLabel() . ' - ' . $this->missingKeysLabel();
+		$note = $this->_('This form is not protected. Only superusers see this notice.');
+		return "<p class='ui-state-error-text'>" . $this->wire('sanitizer')->entities("$text. $note") . "</p>";
 	}
 
 	public function renderReady(?Inputfield $parent = null, $renderValueMode = false): bool {
@@ -78,31 +180,46 @@ class InputfieldTurnstile extends Inputfield {
 	}
 
 	public function ___render(): string {
-		if(!$this->keysConfigured()) return '';
-		$markup = $this->wire('modules')->get('MarkupCloudflareTurnstile');
+		if(!$this->keysConfigured()) return $this->renderMissingKeys();
+		$markup = $this->getMarkupModule();
 
 		// Prepare attributes for the Markup module
 		$attrs = $this->getAttributes();
 		$attrs['class'] = trim('cf-turnstile ' . ($attrs['class'] ?? ''));
-		$attrs['data-size'] = $this->turnstileSize ?: 'normal';
-		$attrs['data-theme'] = $this->turnstileTheme ?: 'auto';
-		$attrs['data-appearance'] = $this->turnstileAppearance === 'interaction-only' ? 'interaction-only' : 'always';
+		$attrs['data-size'] = $this->getTurnstileSetting('turnstileSize');
+		$attrs['data-theme'] = $this->getTurnstileSetting('turnstileTheme');
+		$attrs['data-appearance'] = $this->getTurnstileSetting('turnstileAppearance');
 
-		// If a specific site key is set on this inputfield, override the Markup module's default
-		if($this->turnstileSiteKey) {
-			$attrs['data-sitekey'] = $this->turnstileSiteKey;
-		}
+		$noscript =
+			"<noscript><p class='ui-state-error-text'>" .
+			$this->_('ERROR: Javascript is required to submit this form, please enable it and reload this page before continuing.') .
+			"</p></noscript>";
 
 		// Render using the Markup module
-		return $markup->render($attrs) . $markup->getScript();
+		$out = $this->withFieldKeys($markup, function($markup) use($attrs) {
+			return $markup->render($attrs);
+		});
+
+		return $noscript . $out . $this->renderScript();
 	}
 
 	public function ___processInput(WireInputData $input) {
-		if(!$this->keysConfigured()) return $this;
-		$markup = $this->wire('modules')->get('MarkupCloudflareTurnstile');
-		// Markup module handles getting the response from POST internally usually,
-		// or checks 'cf-turnstile-response'
-		if($markup->verifyResponse() === true) {
+		if(!$this->keysConfigured()) {
+			// nothing was rendered, so there is nothing to require or validate
+			$this->required = false;
+			$this->wire('log')->save('turnstile', sprintf(
+				'Submission accepted without Turnstile verification, %s (field "%s")',
+				$this->missingKeysLabel(),
+				$this->attr('name')
+			));
+			return $this;
+		}
+		$markup = $this->getMarkupModule();
+		// Markup module reads 'cf-turnstile-response' from POST
+		$verified = $this->withFieldKeys($markup, function($markup) {
+			return $markup->verifyResponse();
+		});
+		if($verified === true) {
 			$this->val($this->_('Ok'));
 		} else {
 			$this->error($this->_('Failed to validate (Turnstile)'));
@@ -114,37 +231,22 @@ class InputfieldTurnstile extends Inputfield {
 		$inputfields = parent::___getConfigInputfields();
 		$modules = $this->wire('modules');
 
-		$f = $modules->get('InputfieldRadios');
-		$f->attr('name', 'turnstileAppearance');
-		$f->label = $this->_('Appearance');
-		$f->description = $this->_('With a Managed widget, show it always or only when visitor interaction is needed. Both options use the same API keys.');
-		$f->addOption('always', $this->_('Always visible'));
-		$f->addOption('interaction-only', $this->_('Only when interaction is needed'));
-		$f->attr('value', $this->turnstileAppearance === 'interaction-only' ? 'interaction-only' : 'always');
-		$f->optionColumns = 1;
-		$inputfields->add($f);
-
-		/** @var InputfieldRadios $f */
-		$f = $modules->get('InputfieldRadios');
-		$f->attr('name', 'turnstileTheme');
-		$f->label = $this->_('Theme');
-		$f->addOption('auto', $this->_('Auto'));
-		$f->addOption('light', $this->_('Light'));
-		$f->addOption('dark', $this->_('Dark'));
-		$f->attr('value', $this->turnstileTheme ?: 'auto');
-		$f->optionColumns = 1;
-		$inputfields->add($f);
-
-		/** @var InputfieldRadios $f */
-		$f = $modules->get('InputfieldRadios');
-		$f->attr('name', 'turnstileSize');
-		$f->label = $this->_('Size');
-		$f->addOption('normal', $this->_('Normal'));
-		$f->addOption('compact', $this->_('Compact'));
-		$f->addOption('flexible', $this->_('Flexible'));
-		$f->attr('value', $this->turnstileSize ?: 'normal');
-		$f->optionColumns = 1;
-		$inputfields->add($f);
+		foreach(self::getSettings() as $name => $setting) {
+			/** @var InputfieldRadios $f */
+			$f = $modules->get('InputfieldRadios');
+			$f->attr('name', $name);
+			$f->label = $setting['label'];
+			if($setting['description']) $f->description = $setting['description'];
+			$value = (string) $this->get($name);
+			if($name === 'turnstileAppearance') {
+				$f->addOption(self::useModuleDefault, $this->_('Use module default'));
+				if(!isset($setting['options'][$value])) $value = self::useModuleDefault;
+			}
+			$f->addOptions($setting['options']);
+			$f->attr('value', isset($setting['options'][$value]) || $value === self::useModuleDefault ? $value : $setting['default']);
+			$f->optionColumns = 1;
+			$inputfields->add($f);
+		}
 
 		return $inputfields;
 	}

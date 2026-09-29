@@ -1,52 +1,29 @@
 <?php namespace ProcessWire;
 
+if(!class_exists('\\ProcessWire\\InputfieldTurnstile')) require_once(__DIR__ . '/InputfieldTurnstile.module');
+
 class InputfieldTurnstileConfig extends ModuleConfig {
 
 	public function __construct() {
+		$children = array();
+		foreach(InputfieldTurnstile::getSettings() as $name => $setting) {
+			$children[] = array(
+				'name' => $name,
+				'label' => $setting['label'],
+				'description' => $setting['description'],
+				'type' => 'radios',
+				'options' => $setting['options'],
+				'value' => $setting['default'],
+				'optionColumns' => 1,
+			);
+		}
 		$this->add(array(
 			// Config fields for defaults that can be overridden per field
 			array(
 				'type' => 'fieldset',
 				'label' => $this->_('Default Field Settings'),
 				'description' => $this->_('These settings will be used as defaults for new InputfieldTurnstile fields.'),
-				'children' => array(
-					array(
-						'name' => 'turnstileAppearance',
-						'label' => $this->_('Appearance'),
-						'description' => $this->_('With a Managed widget, show it always or only when visitor interaction is needed. Both options use the same API keys.'),
-						'type' => 'radios',
-						'options' => array(
-							'always' => $this->_('Always visible'),
-							'interaction-only' => $this->_('Only when interaction is needed'),
-						),
-						'value' => 'always',
-						'optionColumns' => 1,
-					),
-					array(
-						'name' => 'turnstileTheme',
-						'label' => $this->_('Theme'),
-						'type' => 'radios',
-						'options' => array(
-							'auto' => $this->_('Auto'),
-							'light' => $this->_('Light'),
-							'dark' => $this->_('Dark'),
-						),
-						'value' => 'auto',
-						'optionColumns' => 1,
-					),
-					array(
-						'name' => 'turnstileSize',
-						'label' => $this->_('Size'),
-						'type' => 'radios',
-						'options' => array(
-							'normal' => $this->_('Normal'),
-							'compact' => $this->_('Compact'),
-							'flexible' => $this->_('Flexible'),
-						),
-						'value' => 'normal',
-						'optionColumns' => 1,
-					)
-				)
+				'children' => $children,
 			)
 		));
 	}

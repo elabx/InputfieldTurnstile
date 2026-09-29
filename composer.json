@@ -20,6 +20,9 @@
     "php": ">=7.4",
     "wireframe-framework/processwire-composer-installer": "^1.1"
   },
+  "suggest": {
+    "nbcommunication/markup-cloudflare-turnstile": "Required ProcessWire module MarkupCloudflareTurnstile. Not on Packagist: install it from the ProcessWire modules directory or GitHub."
+  },
   "extra": {
     "installer-name": "InputfieldTurnstile"
   }
